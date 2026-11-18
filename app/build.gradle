@@ -1,19 +1,14 @@
-plugins {
-    id 'com.android.application'
-}
-
+plugins { id 'com.android.application' }
 android {
-    namespace 'com.aiphonedr.optimizer'
+    namespace 'com.aiphonedr.app'
     compileSdk 35
-
     defaultConfig {
-        applicationId 'com.aiphonedr.optimizer'
+        applicationId 'com.aiphonedr.app'
         minSdk 27
-        targetSdk 28
+        targetSdk 35
         versionCode 1
         versionName '1.0'
     }
-
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_17
         targetCompatibility JavaVersion.VERSION_17
