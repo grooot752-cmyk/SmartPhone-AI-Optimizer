@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#080b14"><title>AI PHONE DR</title>
+<style>
+:root{color-scheme:dark;--bg:#080b14;--panel:rgba(255,255,255,.075);--line:rgba(255,255,255,.12);--muted:#9ba8bd;--blue:#78aaff;--mint:#75e5c2}
+*{box-sizing:border-box}body{margin:0;background:radial-gradient(ellipse at 80% -10%,#233e70 0,transparent 42%),radial-gradient(ellipse at 0 45%,#132c35 0,transparent 36%),var(--bg);color:#f5f7ff;font:15px -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;min-height:100vh;padding:env(safe-area-inset-top) 18px calc(24px + env(safe-area-inset-bottom))}
+header{display:flex;justify-content:space-between;align-items:center;padding:22px 2px 18px}.brand{font-size:12px;letter-spacing:2.5px;color:#b8c8e4;font-weight:700}.avatar{width:38px;height:38px;border-radius:50%;display:grid;place-items:center;background:var(--panel);border:1px solid var(--line)}
+h1{font-size:30px;letter-spacing:-1px;margin:14px 0 6px}.sub{color:var(--muted);margin:0 0 22px}
+.glass{background:linear-gradient(145deg,rgba(255,255,255,.12),rgba(255,255,255,.045));border:1px solid var(--line);backdrop-filter:blur(22px);-webkit-backdrop-filter:blur(22px);border-radius:25px;box-shadow:0 18px 50px #0004}
+.score{padding:22px;display:flex;align-items:center;gap:20px}.ring{width:112px;height:112px;border-radius:50%;display:grid;place-items:center;background:conic-gradient(var(--mint) 0 82%,#ffffff18 82%);position:relative;flex:none}.ring:before{content:"";position:absolute;inset:8px;border-radius:50%;background:#111b2b}.ring strong{z-index:1;font-size:30px}.ring small{font-size:10px;color:var(--muted);display:block;text-align:center}.score h2{font-size:18px;margin:0 0 7px}.score p{color:var(--muted);font-size:13px;line-height:1.5;margin:0}
+.section{display:flex;justify-content:space-between;align-items:center;margin:26px 2px 13px}.section h2{font-size:17px;margin:0}.section span{font-size:12px;color:var(--blue)}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}.tile{padding:17px;min-height:142px}.ico{font-size:23px;margin-bottom:15px}.tile h3{font-size:14px;margin:0 0 6px}.tile p{font-size:12px;color:var(--muted);margin:0;line-height:1.45}
+.action{width:100%;margin-top:18px;border:0;border-radius:17px;padding:16px;color:#07121b;background:linear-gradient(100deg,#8be8d0,#8bb8ff);font-size:15px;font-weight:750;box-shadow:0 8px 28px #5c9ee533}
+.note{color:var(--muted);font-size:11px;line-height:1.5;text-align:center;margin:15px 10px}.status{margin-top:12px;color:var(--mint);font-size:12px;text-align:center;min-height:18px}
+nav{display:flex;justify-content:space-around;margin-top:24px;padding:14px 5px;color:var(--muted);font-size:11px}.navitem{text-align:center}.navitem b{display:block;font-size:18px;margin-bottom:5px;color:#dbe6ff}
+@media(min-width:650px){main{max-width:620px;margin:auto}.grid{grid-template-columns:repeat(4,1fr)}}
+</style></head><body>
+<main><header><div class="brand">AI PHONE DR</div><div class="avatar">✦</div></header>
+<h1>Your phone, understood.</h1><p class="sub">A smarter view of your device health.</p>
+<section class="glass score"><div class="ring"><strong>82<small>HEALTH</small></strong></div><div><h2>Looking good</h2><p>Your device dashboard is ready. Run a check to review the areas you can improve.</p></div></section>
+<div class="section"><h2>Device toolkit</h2><span>4 MODULES</span></div>
+<section class="grid">
+<div class="glass tile"><div class="ico">◉</div><h3>Storage insight</h3><p>Review storage usage in Android settings.</p></div>
+<div class="glass tile"><div class="ico">⌁</div><h3>Battery care</h3><p>Explore battery status and usage.</p></div>
+<div class="glass tile"><div class="ico">▦</div><h3>App manager</h3><p>Review installed apps and permissions.</p></div>
+<div class="glass tile"><div class="ico">✧</div><h3>Performance</h3><p>Get practical device-care guidance.</p></div>
+</section>
+<button class="action" id="scan">Run device check</button><div class="status" id="status" aria-live="polite"></div>
+<p class="note">AI PHONE DR provides guidance and shortcuts. Android controls protected system operations; this app does not secretly clean files, boost RAM, or change battery settings.</p>
+<nav><div class="navitem"><b>⌂</b>Home</div><div class="navitem"><b>◈</b>Health</div><div class="navitem"><b>▦</b>Apps</div><div class="navitem"><b>⚙</b>Settings</div></nav>
+</main><script>
+document.getElementById('scan').addEventListener('click',()=>{const s=document.getElementById('status');s.textContent='Device check started. Use the Android settings shortcuts to inspect protected system details.';if(window.AndroidBridge&&AndroidBridge.openSettings){AndroidBridge.openSettings('battery');}});
+</script></body></html>
