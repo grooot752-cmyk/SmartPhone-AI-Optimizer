@@ -4,7 +4,7 @@
     <uses-permission android:name="android.permission.VIBRATE" />
     <uses-permission android:name="android.permission.PACKAGE_USAGE_STATS" />
     <application android:theme="@android:style/Theme.Material.NoActionBar" android:label="DR.DEFENDER" android:usesCleartextTraffic="false">
-        <activity android:name=".MainActivity" android:exported="true">
+        <service android:name=".DefenderNotificationListener" android:label="DR.DEFENDER notification activity" android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE" android:exported="true"><intent-filter><action android:name="android.service.notification.NotificationListenerService" /></intent-filter></service>\n        <activity android:name=".MainActivity" android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
