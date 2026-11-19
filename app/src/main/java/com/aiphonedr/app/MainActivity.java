@@ -182,8 +182,16 @@ public class MainActivity extends Activity implements SensorEventListener {
                     case "network": intent = new Intent(Settings.ACTION_WIFI_SETTINGS); break;
                     case "lost": intent = new Intent(Settings.ACTION_SECURITY_SETTINGS); break;
                     case "gaming": intent = new Intent(Settings.ACTION_NOTIFICATION_POLICY_ACCESS_SETTINGS); break;
-                    case "performance":
+                    case "performance": intent = new Intent(Settings.ACTION_DEVICE_INFO_SETTINGS); break;
                     case "ram": intent = new Intent(Settings.ACTION_DEVICE_INFO_SETTINGS); break;
+                    case "privacy": intent = new Intent("android.settings.PRIVACY_SETTINGS"); break;
+                    case "app_usage": intent = new Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS); break;
+                    case "display": intent = new Intent(Settings.ACTION_DISPLAY_SETTINGS); break;
+                    case "sound": intent = new Intent(Settings.ACTION_SOUND_SETTINGS); break;
+                    case "location": intent = new Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS); break;
+                    case "wifi_security": intent = new Intent(Settings.ACTION_WIFI_SETTINGS); break;
+                    case "app_details": intent = new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:" + getPackageName())); break;
+                    case "system_update": intent = new Intent("android.settings.SYSTEM_UPDATE_SETTINGS"); break;
                     default: intent = new Intent(Settings.ACTION_SETTINGS); break;
                 }
                 try { startActivity(intent); }
