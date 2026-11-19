@@ -50,8 +50,31 @@ body:before{content:"";position:fixed;inset:-30%;pointer-events:none;z-index:-1;
 @property --edge-angle{syntax:'<angle>';initial-value:0deg;inherits:false}
 @keyframes edgeBreathe{0%,100%{opacity:.36}50%{opacity:.9}}
 @media(prefers-reduced-motion:reduce){.edge-glow{animation:none;opacity:.45}}
+
+.chat-launch{border-radius:999px;padding:9px 14px;color:#eaf3ff;font-weight:750;font-size:12px;cursor:pointer}
+.chat-screen{display:none;min-height:calc(100vh - 110px);padding-bottom:20px}
+.chat-top{display:flex;align-items:center;gap:12px;margin:8px 0 16px}
+.chat-back{border:1px solid var(--line);background:#ffffff0c;color:#eaf3ff;border-radius:13px;padding:10px 13px;font-size:13px}
+.chat-heading{font-size:21px;font-weight:800}.chat-caption{font-size:11px;color:var(--muted);margin-top:3px}
+.chat-welcome{padding:17px;margin-bottom:14px;display:flex;align-items:center;gap:13px}
+.chat-welcome .orb{width:55px;height:55px;flex-basis:55px}.chat-welcome .orb span{font-size:20px}
+.chat-welcome b{font-size:14px}.chat-welcome p{font-size:11px;color:var(--muted);line-height:1.45;margin:5px 0 0}
+.chat-quick{display:flex;gap:8px;overflow-x:auto;padding:4px 1px 12px;scrollbar-width:none}
+.chat-quick button{flex:0 0 auto;border:1px solid #b9d5ff3b;border-radius:999px;background:#ffffff0c;color:#dceaff;padding:9px 12px;font-size:11px}
+.chat-messages{display:flex;flex-direction:column;gap:10px;min-height:240px;max-height:48vh;overflow-y:auto;padding:4px 2px 14px}
+.chat-msg{max-width:88%;padding:12px 14px;border-radius:18px;font-size:13px;line-height:1.5;white-space:pre-wrap;overflow-wrap:anywhere;animation:appear .22s ease}
+.chat-msg.ai{align-self:flex-start;background:linear-gradient(145deg,#ffffff18,#ffffff09);border:1px solid #ffffff1b;border-bottom-left-radius:5px}
+.chat-msg.user{align-self:flex-end;background:linear-gradient(120deg,#a5d9ff,#b5a8ff);color:#101827;border-bottom-right-radius:5px}
+.chat-compose{display:flex;gap:8px;align-items:flex-end;padding:9px;border-radius:20px}
+.chat-compose textarea{flex:1;resize:none;min-height:42px;max-height:110px;border:0;outline:0;background:transparent;color:#fff;font:13px inherit;padding:12px 5px}
+.chat-compose textarea::placeholder{color:#9ba8bd}
+.chat-send,.chat-mic{width:42px;height:42px;flex:0 0 42px;border:0;border-radius:14px;background:linear-gradient(135deg,#9ae8d5,#9bbdff);color:#07121b;font-size:18px;font-weight:800;cursor:pointer}
+.chat-mic{background:#ffffff14;color:#e5efff;border:1px solid var(--line)}
+.chat-disclaimer{font-size:10px;color:var(--muted);line-height:1.45;text-align:center;margin:10px 8px}
+.chat-status{font-size:10px;color:var(--mint);text-align:center;min-height:16px;margin:4px}
+main.chat-open> :not(header):not(#chatScreen){display:none!important}main.chat-open #chatScreen{display:block}
 </style></head><body><div class="edge-glow" aria-hidden="true"></div><main>
-<header><div class="brand">PH DOC AI</div><div class="avatar">✧</div></header>
+<header><div class="brand">PH DOC AI</div><button class="chat-launch glass" id="chatLaunch">✧ AI Chat</button><div class="avatar">✧</div></header>
 <h1>Your phone. Healthier.</h1><p class="sub">An intelligent device care centre.</p>
 <section class="glass hero"><div class="orb"><span>✧</span></div><div><h2>Liquid Glass Device Hub</h2><p>Explore device care, security and live hardware diagnostics with native Android integration.</p></div></section>
 <div class="section"><h2>Phone care</h2><span>13 TOOLS</span></div>
@@ -81,6 +104,16 @@ body:before{content:"";position:fixed;inset:-30%;pointer-events:none;z-index:-1;
 <div class="status" id="voiceTranscript" aria-live="polite">Try: “check battery”, “open storage”, “scan phone”, or “show sensors”.</div>
 <div class="status" id="status" aria-live="polite">Ready. Choose a tool or detect your sensors.</div>
 <p class="note">Sensor readings are processed on-device and stop when the app is paused. Availability depends on your phone hardware. Android requires your approval for protected file, app and system actions. The scanner checks warning signs; it is not a guaranteed antivirus verdict.</p>
+
+<section id="chatScreen" class="chat-screen" aria-label="PH DOC AI phone management chat">
+<div class="chat-top"><button class="chat-back" id="chatBack">← Dashboard</button><div><div class="chat-heading">PH DOC AI Chat</div><div class="chat-caption">Your phone-management assistant</div></div></div>
+<div class="glass chat-welcome"><div class="orb"><span>✧</span></div><div><b>Hi! I’m your PH DOC AI assistant.</b><p>Ask about battery, temperature, storage, apps, sensors, security or network. I can guide supported actions.</p></div></div>
+<div class="chat-quick" id="chatQuick"><button data-prompt="Check my battery and charging status">⌁ Battery</button><button data-prompt="Check my phone temperature">🌡 Temperature</button><button data-prompt="Help me manage storage">◉ Storage</button><button data-prompt="Show my phone sensors">⌖ Sensors</button><button data-prompt="Open security scan">⛨ Security</button><button data-prompt="Help me manage installed apps">▦ Apps</button></div>
+<div class="chat-messages" id="chatMessages" aria-live="polite"><div class="chat-msg ai">Welcome! What would you like to check or manage on your phone today?</div></div>
+<div class="glass chat-compose"><button class="chat-mic" id="chatMic" title="Speak">🎙</button><textarea id="chatInput" rows="1" placeholder="Ask PH DOC AI to manage your phone…"></textarea><button class="chat-send" id="chatSend" aria-label="Send message">↑</button></div>
+<div class="chat-status" id="chatStatus">Phone actions require Android permissions and your confirmation.</div>
+<p class="chat-disclaimer">The chat layout and phone shortcuts are ready. Live ChatGPT responses require the secure AI backend to be configured. No files are deleted and no protected settings are changed without your approval.</p>
+</section>
 <nav><button class="navitem" data-action="home"><b>⌂</b>Home</button><button class="navitem" data-action="doctor"><b>✚</b>Health</button><button class="navitem" data-action="antivirus"><b>⛨</b>Security</button><button class="navitem" data-action="settings"><b>⚙</b>Settings</button></nav>
 </main><script>
 const statusEl=document.getElementById('status'), tempPanel=document.getElementById('temperaturePanel'), panel=document.getElementById('sensorPanel'), sensorList=document.getElementById('sensorList');
@@ -101,7 +134,7 @@ document.querySelectorAll('[data-action]').forEach(el=>el.addEventListener('clic
 function onVoiceError(message){document.querySelector('.edge-glow')?.classList.remove('voice-active');statusEl.textContent=message;document.getElementById('voiceTranscript').textContent=message;}
 function onVoiceResult(raw){
  document.querySelector('.edge-glow')?.classList.remove('voice-active');
- const heard=String(raw||'').trim();document.getElementById('voiceTranscript').textContent='You said: “'+heard+'”';
+ const heard=String(raw||'').trim();if(window.__chatVoicePending){window.__chatVoicePending=false;document.getElementById('chatInput').value=heard;sendChat();return;}document.getElementById('voiceTranscript').textContent='You said: “'+heard+'”';
  const q=heard.toLowerCase();
  const commands=[
   [/\b(sensor|hardware)\b|show.*sensors|detect.*sensor/,'sensors'],
@@ -138,4 +171,37 @@ document.getElementById('voice').addEventListener('click',()=>{
 });
 
 document.getElementById('scan').addEventListener('click',()=>{statusEl.textContent='Guided health check: inspect sensors, battery, storage and installed apps. No changes are made automatically.';});
+
+const chatMessages=document.getElementById('chatMessages'),chatInput=document.getElementById('chatInput'),chatStatus=document.getElementById('chatStatus');
+function openChat(){document.querySelector('main').classList.add('chat-open');chatInput.focus();}
+function closeChat(){document.querySelector('main').classList.remove('chat-open');}
+document.getElementById('chatLaunch').addEventListener('click',openChat);
+document.getElementById('chatBack').addEventListener('click',closeChat);
+document.querySelectorAll('.navitem').forEach(b=>{if(b.dataset.action==='home')b.addEventListener('click',closeChat);});
+function chatBubble(t,who){const d=document.createElement('div');d.className='chat-msg '+who;d.textContent=t;chatMessages.appendChild(d);chatMessages.scrollTop=chatMessages.scrollHeight;}
+function phoneChatReply(text){
+ const q=text.toLowerCase();let reply='I can help with battery, temperature, storage, apps, RAM, Wi-Fi, sensors, backups, notifications, gaming and security. Which would you like to check?';let action=null;
+ if(/battery|charging|charger|power/.test(q)){action='battery';let detail='I can open Battery settings.';try{if(window.AndroidBridge){const b=JSON.parse(AndroidBridge.getBatteryInfo());detail='Battery temperature: '+(b.temperature==null?'not available':(b.temperature/10).toFixed(1)+' °C')+'. Charging: '+(b.charging?'yes':'no')+'. Health: '+(b.health||'unknown')+'.';}}catch(e){}reply='Battery check: '+detail+' No settings have been changed.';}
+ else if(/temperature|hot|heat|overheat/.test(q)){action='temperature';reply='I’ll show the battery temperature and charging state reported by Android. This may differ from CPU or outer phone temperature.';}
+ else if(/storage|space|junk|clean/.test(q)){action='storage';reply='I can open Android Storage so you can review space usage. I will not delete anything automatically.';}
+ else if(/sensor|hardware/.test(q)){action='sensors';reply='I’ll detect the sensors exposed by your phone and start live readings where supported.';}
+ else if(/virus|malware|security|apk/.test(q)){action='antivirus';reply='The security module is selected. A full malware verdict requires the APK/file inspection workflow; this is not a completed scan.';}
+ else if(/app|permission|installed/.test(q)){action='apps';reply='I can open Android app settings so you can review installed apps and permissions.';}
+ else if(/ram|memory/.test(q)){action='ram';reply='Android manages RAM automatically. I can show device information and guide you to app controls; force-cleaning RAM is not recommended.';}
+ else if(/network|wifi|wi-fi|internet/.test(q)){action='network';reply='I can open Wi-Fi and network controls. Connection tests and speed measurements need their own diagnostic implementation.';}
+ else if(/backup|restore/.test(q)){action='backup';reply='Backup and restore needs you to choose files and a destination. Nothing will be copied until you approve access.';}
+ else if(/notification/.test(q)){action='notifications';reply='I can open notification settings so you can choose which apps may notify you.';}
+ else if(/gaming|game/.test(q)){action='gaming';reply='I can open notification controls for a focused gaming session. Android performance controls vary by device.';}
+ else if(/doctor|diagnos|health check|scan phone/.test(q)){action='doctor';reply='I can start the guided phone-health check. It currently provides guidance, not a complete hardware or malware scan.';}
+ else if(/lost phone|find my phone|anti.?theft/.test(q)){action='lost';reply='I can open Android security settings. Use Google Find Hub or your device maker’s official service to locate a lost phone.';}
+ if(action==='sensors'){if(window.AndroidBridge){sensorInventory(AndroidBridge.getSensors());AndroidBridge.startSensors();}else reply+=' Install the Android APK to access hardware sensors.';}
+ else if(action==='temperature'&&window.AndroidBridge){try{onBatteryInfo(AndroidBridge.getBatteryInfo());}catch(e){}}
+ else if(action){runAction(action);}
+ return reply;
+}
+function sendChat(){const msg=chatInput.value.trim();if(!msg)return;chatBubble(msg,'user');chatInput.value='';chatStatus.textContent='Checking supported phone information…';const reply=phoneChatReply(msg);setTimeout(()=>{chatBubble(reply,'ai');chatStatus.textContent='On-device phone guidance · Live ChatGPT backend not connected yet.';},120);}
+document.getElementById('chatSend').addEventListener('click',sendChat);
+chatInput.addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendChat();}});
+document.getElementById('chatQuick').addEventListener('click',e=>{const b=e.target.closest('button[data-prompt]');if(!b)return;chatInput.value=b.dataset.prompt;sendChat();});
+document.getElementById('chatMic').addEventListener('click',()=>{if(window.AndroidBridge&&AndroidBridge.startVoiceCommand){chatStatus.textContent='Listening…';window.__chatVoicePending=true;document.querySelector('.edge-glow')?.classList.add('voice-active');AndroidBridge.startVoiceCommand();}else chatStatus.textContent='Voice input is available in the installed Android app.';});
 </script></body></html>
