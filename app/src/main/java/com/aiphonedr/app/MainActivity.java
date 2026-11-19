@@ -26,6 +26,7 @@ import android.net.TrafficStats;
 import android.os.SystemClock;
 import android.net.Uri;
 import android.provider.Settings;
+import android.provider.OpenableColumns;
 import android.webkit.JavascriptInterface;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
@@ -335,7 +336,23 @@ public class MainActivity extends Activity implements SensorEventListener {
             return;
         }
         if (requestCode == REQUEST_PICK_DOCUMENT) {
-            if (resultCode == RESULT_OK && data != null && data.getData() != null) sendToPage("onDocumentPicked", data.getData().toString());
+            if (resultCode == RESULT_OK && data != null && data.getData() != null) {
+                Uri uri = data.getData();
+                JSONObject selected = new JSONObject();
+                try {
+                    selected.put("uri", uri.toString());
+                    selected.put("mime", getContentResolver().getType(uri));
+                    try (android.database.Cursor cursor = getContentResolver().query(uri, null, null, null, null)) {
+                        if (cursor != null && cursor.moveToFirst()) {
+                            int nameCol = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME);
+                            int sizeCol = cursor.getColumnIndex(OpenableColumns.SIZE);
+                            if (nameCol >= 0) selected.put("name", cursor.getString(nameCol));
+                            if (sizeCol >= 0 && !cursor.isNull(sizeCol)) selected.put("size", cursor.getLong(sizeCol));
+                        }
+                    }
+                } catch (Exception ignored) {}
+                sendToPage("onDocumentPicked", selected.toString());
+            } else sendToPage("onDocumentPicked", "{}");
             return;
         }
         if (requestCode == REQUEST_VOICE_RECOGNITION) {
