@@ -235,11 +235,18 @@ const temp=battery.temperature==null||battery.temperature<0?'Not available':(bat
 const bytes=n=>{if(!n)return 'Not available';const gb=n/1073741824;return gb.toFixed(2)+' GB';};
 reportAdd(overview,'Device',((stats.model||'Device unavailable')+' · Android '+(stats.android||'—')));
 reportAdd(overview,'Battery temperature',temp);
+reportAdd(overview,'Battery level',(battery.percent>=0?battery.percent+'%':'Not available')+' · '+(battery.technology||'Battery technology unavailable'));
 reportAdd(overview,'Battery health',(battery.health||'Not available')+' · '+(battery.status||'Status unknown'));
+reportAdd(overview,'Battery voltage',battery.voltageMv>0?(battery.voltageMv/1000).toFixed(2)+' V':'Not available');
 reportAdd(overview,'Charging',(battery.connected?'Connected':'Disconnected')+' · '+(battery.plugType||'Unknown'));
 reportAdd(overview,'RAM','Available '+bytes(stats.ramAvailable)+' / '+bytes(stats.ramTotal));
 reportAdd(overview,'Storage','Free '+bytes(stats.storageAvailable)+' / '+bytes(stats.storageTotal));
 reportAdd(overview,'Network',stats.network||'Not available');
+const fmtBytes=n=>n==null||n<0?'Not available':(n/1073741824).toFixed(2)+' GB';
+reportAdd(overview,'Network received',fmtBytes(stats.networkRxBytes));
+reportAdd(overview,'Network sent',fmtBytes(stats.networkTxBytes));
+reportAdd(overview,'System memory alert',stats.lowMemory?'Android reports low memory':'No low-memory warning');
+reportAdd(overview,'Device uptime',stats.uptimeMs>0?Math.floor(stats.uptimeMs/3600000)+' hours':'Not available');
 reportFeaturesList.forEach(([name,detail])=>{const d=document.createElement('div');d.className='report-entry';const b=document.createElement('b');b.textContent=name;const p=document.createElement('p');p.textContent=detail;d.append(b,p);features.appendChild(d);});
 document.getElementById('reportSensorCount').textContent=sensorData.length+' DETECTED';
 if(sensorData.length){sensorData.forEach(s=>{const d=document.createElement('div');d.className='report-entry';const b=document.createElement('b');b.textContent=s.name||s.type;const p=document.createElement('p');p.textContent=(s.vendor||'')+' · '+(s.type||'');d.append(b,p);sensors.appendChild(d);});}else sensors.textContent='No sensor inventory returned. Install and open the Android app, then refresh.';
