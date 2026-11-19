@@ -43,6 +43,8 @@ body:before{content:"";position:fixed;inset:-30%;pointer-events:none;z-index:-1;
 
 /* Siri / Apple Intelligence-inspired full-screen edge illumination */
 .edge-glow{position:fixed;inset:0;z-index:50;pointer-events:none;padding:3px;border-radius:24px;background:conic-gradient(from var(--edge-angle,0deg),#62eaff,#7e8dff,#d88cff,#ff9ed1,#78f1d0,#62eaff);opacity:.72;mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);mask-composite:exclude;-webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;filter:drop-shadow(0 0 5px #76dfff99) drop-shadow(0 0 15px #9b82ff66);animation:edgeRotate 12s linear infinite,edgeBreathe 3.6s ease-in-out infinite}
+.edge-glow.voice-active{opacity:1;filter:drop-shadow(0 0 9px #76dfff) drop-shadow(0 0 26px #b77cff)}
+.edge-glow.voice-active{animation:edgeRotate 3s linear infinite,edgeBreathe .8s ease-in-out infinite}
 .edge-glow:after{content:"";position:absolute;inset:-2px;border-radius:inherit;box-shadow:inset 0 0 22px #75dfff22,0 0 22px #8b8cff22}
 @keyframes edgeRotate{to{--edge-angle:360deg}}
 @property --edge-angle{syntax:'<angle>';initial-value:0deg;inherits:false}
@@ -75,6 +77,8 @@ body:before{content:"";position:fixed;inset:-30%;pointer-events:none;z-index:-1;
 <section class="glass" id="sensorPanel"><div class="sensorhead"><h3>Detected phone sensors</h3><span id="sensorCount" style="font-size:11px;color:var(--mint)">—</span></div><div class="sensorlist" id="sensorList"></div><button class="action" id="stopSensors" style="margin-top:12px">Stop live sensors</button></section>
 <button class="action" id="openSensors">Detect & connect phone sensors</button>
 <button class="action" id="scan" style="background:linear-gradient(100deg,#b8a4ff,#8bb8ff)">Start device health check</button>
+<button class="action" id="voice" style="background:linear-gradient(100deg,#8be8d0,#a99aff,#8bb8ff);color:#07121b">✦ Talk to PH DOC AI</button>
+<div class="status" id="voiceTranscript" aria-live="polite">Try: “check battery”, “open storage”, “scan phone”, or “show sensors”.</div>
 <div class="status" id="status" aria-live="polite">Ready. Choose a tool or detect your sensors.</div>
 <p class="note">Sensor readings are processed on-device and stop when the app is paused. Availability depends on your phone hardware. Android requires your approval for protected file, app and system actions. The scanner checks warning signs; it is not a guaranteed antivirus verdict.</p>
 <nav><button class="navitem" data-action="home"><b>⌂</b>Home</button><button class="navitem" data-action="doctor"><b>✚</b>Health</button><button class="navitem" data-action="antivirus"><b>⛨</b>Security</button><button class="navitem" data-action="settings"><b>⚙</b>Settings</button></nav>
@@ -93,5 +97,45 @@ document.getElementById('stopSensors').addEventListener('click',()=>{if(window.A
 const actions={temperature:'Reading actual Android battery temperature and charging information.',doctor:'Device check: review battery, storage, apps and system updates.',storage:'Opening Android storage controls. Review files before deleting.',battery:'Opening battery settings.',antivirus:'Virus scanner module selected. APK scanning requires the dedicated file inspection workflow.',backup:'Backup module selected. File access must be approved through Android.',apps:'Opening installed app settings.',ram:'Opening device information. Android manages RAM automatically.',network:'Opening Wi-Fi settings.',organizer:'File organizer selected. Choose files with Android file access.',gaming:'Opening notification policy settings.',lost:'Opening Android security settings.',notifications:'Opening app notification settings.',performance:'Opening device information.',settings:'Opening Android settings.'};
 function runAction(k){statusEl.textContent=actions[k]||'Home dashboard.';if(k==='temperature'&&window.AndroidBridge){onBatteryInfo(AndroidBridge.getBatteryInfo());return;}if(window.AndroidBridge&&k!=='doctor'&&k!=='antivirus'&&k!=='backup'&&k!=='organizer')AndroidBridge.openSettings(k);}
 document.querySelectorAll('[data-action]').forEach(el=>el.addEventListener('click',()=>runAction(el.dataset.action)));
+
+function onVoiceError(message){document.querySelector('.edge-glow')?.classList.remove('voice-active');statusEl.textContent=message;document.getElementById('voiceTranscript').textContent=message;}
+function onVoiceResult(raw){
+ document.querySelector('.edge-glow')?.classList.remove('voice-active');
+ const heard=String(raw||'').trim();document.getElementById('voiceTranscript').textContent='You said: “'+heard+'”';
+ const q=heard.toLowerCase();
+ const commands=[
+  [/\b(sensor|hardware)\b|show.*sensors|detect.*sensor/,'sensors'],
+  [/temperature|phone heat|overheat/,'temperature'],
+  [/charging|charger|plugged in|unplugged/,'temperature'],
+  [/battery|power/,'battery'],
+  [/storage|space|junk|cleaner/,'storage'],
+  [/virus|malware|security scan|scan.*apk/,'antivirus'],
+  [/backup|restore/,'backup'],
+  [/app manager|installed apps|manage apps/,'apps'],
+  [/ram|memory/,'ram'],
+  [/network|wifi|wi-fi|internet/,'network'],
+  [/organize files|file organizer|files/,'organizer'],
+  [/gaming|game mode/,'gaming'],
+  [/lost phone|find my phone|device security/,'lost'],
+  [/notification/,'notifications'],
+  [/performance|speed|phone doctor|health check|scan phone|diagnos/,'doctor'],
+  [/settings/,'settings'],
+  [/home|dashboard/,'home']
+ ];
+ const match=commands.find(([pattern])=>pattern.test(q));
+ if(!match){statusEl.textContent='I heard “'+heard+'”. Try a feature name such as battery, storage, temperature, or network.';return;}
+ if(match[1]==='sensors'){if(window.AndroidBridge){sensorInventory(AndroidBridge.getSensors());AndroidBridge.startSensors();statusEl.textContent='Voice command: live sensor monitoring started.';}else statusEl.textContent='Install the Android app to access sensors.';return;}
+ if(match[1]==='doctor'){document.getElementById('scan').click();return;}
+ if(match[1]==='backup'||match[1]==='antivirus'||match[1]==='organizer'){runAction(match[1]);return;}
+ runAction(match[1]);
+}
+document.getElementById('voice').addEventListener('click',()=>{
+ if(!window.AndroidBridge||!AndroidBridge.startVoiceCommand){statusEl.textContent='Voice commands are available in the installed Android app.';return;}
+ document.querySelector('.edge-glow')?.classList.add('voice-active');
+ statusEl.textContent='Listening… Speak a PH DOC AI command.';
+ document.getElementById('voiceTranscript').textContent='Microphone is active only for this voice request.';
+ AndroidBridge.startVoiceCommand();
+});
+
 document.getElementById('scan').addEventListener('click',()=>{statusEl.textContent='Guided health check: inspect sensors, battery, storage and installed apps. No changes are made automatically.';});
 </script></body></html>
