@@ -1,6 +1,10 @@
 package com.aiphonedr.app;
 
 import android.app.Activity;
+import android.graphics.Canvas;
+import android.graphics.Paint;
+import android.graphics.pdf.PdfDocument;
+import java.io.OutputStream;
 import android.Manifest;
 import android.content.pm.PackageManager;
 import android.speech.RecognizerIntent;
@@ -36,6 +40,8 @@ public class MainActivity extends Activity implements SensorEventListener {
     private static final int REQUEST_VOICE_PERMISSION = 7101;
     private static final int REQUEST_VOICE_RECOGNITION = 7102;
     private static final int REQUEST_PICK_DOCUMENT = 7103;
+    private static final int REQUEST_SAVE_REPORT_PDF = 7104;
+    private String pendingPdfText = "";
 
     @Override public void onCreate(Bundle state) {
         super.onCreate(state);
@@ -124,6 +130,16 @@ public class MainActivity extends Activity implements SensorEventListener {
     public class AndroidBridge {
         @JavascriptInterface public String getSensors() { return sensorInventory(); }
         @JavascriptInterface public String getDeviceStats() { return deviceStats(); }
+        @JavascriptInterface public void exportReport(String reportText) {
+            pendingPdfText = reportText == null ? "PH DOC AI report is empty." : reportText;
+            runOnUiThread(() -> {
+                Intent intent = new Intent(Intent.ACTION_CREATE_DOCUMENT);
+                intent.addCategory(Intent.CATEGORY_OPENABLE);
+                intent.setType("application/pdf");
+                intent.putExtra(Intent.EXTRA_TITLE, "PH_DOC_AI_Phone_Management_Report.pdf");
+                startActivityForResult(intent, REQUEST_SAVE_REPORT_PDF);
+            });
+        }
         @JavascriptInterface public void pickDocument() { runOnUiThread(() -> { Intent i = new Intent(Intent.ACTION_OPEN_DOCUMENT); i.setType("*/*"); i.addCategory(Intent.CATEGORY_OPENABLE); startActivityForResult(i, REQUEST_PICK_DOCUMENT); }); }
         @JavascriptInterface public void startVoiceCommand() {
             runOnUiThread(() -> {
@@ -229,6 +245,59 @@ public class MainActivity extends Activity implements SensorEventListener {
         } catch (Exception e) { return "{}"; }
     }
 
+    private void writeReportPdf(Uri destination) {
+        if (destination == null) return;
+        PdfDocument document = new PdfDocument();
+        Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
+        paint.setTextSize(10f);
+        paint.setColor(android.graphics.Color.BLACK);
+        int pageNumber = 1;
+        int pageWidth = 595;
+        int pageHeight = 842;
+        int left = 42;
+        int y = 52;
+        PdfDocument.Page page = document.startPage(new PdfDocument.PageInfo.Builder(pageWidth, pageHeight, pageNumber).create());
+        Canvas canvas = page.getCanvas();
+        Paint heading = new Paint(Paint.ANTI_ALIAS_FLAG);
+        heading.setColor(android.graphics.Color.rgb(30, 65, 105));
+        heading.setTextSize(16f);
+        heading.setFakeBoldText(true);
+        canvas.drawText("PH DOC AI — Phone Management Report", left, y, heading);
+        y += 30;
+        String[] lines = pendingPdfText.split("\\n");
+        for (String original : lines) {
+            String remaining = original;
+            if (remaining.length() == 0) remaining = " ";
+            while (remaining.length() > 0) {
+                int count = paint.breakText(remaining, true, pageWidth - left - 42, null);
+                if (count <= 0) count = Math.min(1, remaining.length());
+                String line = remaining.substring(0, count);
+                if (y > pageHeight - 48) {
+                    document.finishPage(page);
+                    pageNumber++;
+                    page = document.startPage(new PdfDocument.PageInfo.Builder(pageWidth, pageHeight, pageNumber).create());
+                    canvas = page.getCanvas();
+                    y = 52;
+                    canvas.drawText("PH DOC AI — Phone Management Report (continued)", left, 30, heading);
+                }
+                canvas.drawText(line, left, y, paint);
+                y += 16;
+                remaining = remaining.substring(count);
+            }
+        }
+        document.finishPage(page);
+        try (OutputStream output = getContentResolver().openOutputStream(destination)) {
+            if (output == null) throw new java.io.IOException("Unable to open selected destination");
+            document.writeTo(output);
+            sendToPage("onReportPdfSaved", "PDF report saved successfully.");
+        } catch (Exception e) {
+            sendToPage("onReportPdfError", "Could not save PDF: " + e.getMessage());
+        } finally {
+            document.close();
+            pendingPdfText = "";
+        }
+    }
+
     private void launchVoiceRecognition() {
         try {
             Intent intent = new Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH);
@@ -249,7 +318,16 @@ public class MainActivity extends Activity implements SensorEventListener {
 
     @Override protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
-        if (requestCode == REQUEST_PICK_DOCUMENT) {\n            if (resultCode == RESULT_OK && data != null && data.getData() != null) sendToPage("onDocumentPicked", data.getData().toString());\n            return;\n        }\n        if (requestCode == REQUEST_VOICE_RECOGNITION) {
+        if (requestCode == REQUEST_SAVE_REPORT_PDF) {
+            if (resultCode == RESULT_OK && data != null) writeReportPdf(data.getData());
+            else sendToPage("onReportPdfError", "PDF export was cancelled.");
+            return;
+        }
+        if (requestCode == REQUEST_PICK_DOCUMENT) {
+            if (resultCode == RESULT_OK && data != null && data.getData() != null) sendToPage("onDocumentPicked", data.getData().toString());
+            return;
+        }
+        if (requestCode == REQUEST_VOICE_RECOGNITION) {
             if (resultCode == RESULT_OK && data != null) {
                 java.util.ArrayList<String> matches = data.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS);
                 if (matches != null && !matches.isEmpty()) sendToPage("onVoiceResult", matches.get(0));
