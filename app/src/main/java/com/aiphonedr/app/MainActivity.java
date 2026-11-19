@@ -158,6 +158,7 @@ public class MainActivity extends Activity implements SensorEventListener {
         @JavascriptInterface public void pickDocument() { runOnUiThread(() -> { Intent i = new Intent(Intent.ACTION_OPEN_DOCUMENT); i.setType("*/*"); i.addCategory(Intent.CATEGORY_OPENABLE); startActivityForResult(i, REQUEST_PICK_DOCUMENT); }); }
         @JavascriptInterface public void pickBackupSource() { runOnUiThread(() -> { Intent i = new Intent(Intent.ACTION_OPEN_DOCUMENT); i.setType("*/*"); i.addCategory(Intent.CATEGORY_OPENABLE); i.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION); startActivityForResult(i, REQUEST_BACKUP_SOURCE); }); }
         @JavascriptInterface public String getAppUsage() { return appUsageStats(); }
+        @JavascriptInterface public String getNotificationActivity() { return DefenderNotificationListener.getSummary(MainActivity.this); }
         @JavascriptInterface public void inspectApk() { runOnUiThread(() -> { Intent i = new Intent(Intent.ACTION_OPEN_DOCUMENT); i.setType("application/vnd.android.package-archive"); i.addCategory(Intent.CATEGORY_OPENABLE); startActivityForResult(i, REQUEST_APK_INSPECTION); }); }
         @JavascriptInterface public void testVibration() { runOnUiThread(() -> { try { if (Build.VERSION.SDK_INT >= 31) { VibratorManager vm = (VibratorManager) getSystemService(VIBRATOR_MANAGER_SERVICE); vm.getDefaultVibrator().vibrate(VibrationEffect.createOneShot(180, VibrationEffect.DEFAULT_AMPLITUDE)); } else { Vibrator v = (Vibrator) getSystemService(VIBRATOR_SERVICE); if (v != null && v.hasVibrator()) v.vibrate(VibrationEffect.createOneShot(180, VibrationEffect.DEFAULT_AMPLITUDE)); } sendToPage("onNativeTestResult", "Vibration test sent. Did you feel it?"); } catch (Exception e) { sendToPage("onNativeTestResult", "Vibration test unavailable: " + e.getMessage()); } }); }
         @JavascriptInterface public void startVoiceCommand() {
@@ -219,6 +220,7 @@ public class MainActivity extends Activity implements SensorEventListener {
                     case "battery": intent = new Intent(Settings.ACTION_BATTERY_SAVER_SETTINGS); break;
                     case "apps": intent = new Intent(Settings.ACTION_APPLICATION_SETTINGS); break;
                     case "notifications": intent = new Intent("android.settings.APP_NOTIFICATION_SETTINGS").putExtra("android.provider.extra.APP_PACKAGE", getPackageName()); break;
+                    case "notification_access": intent = new Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS); break;
                     case "network": intent = new Intent(Settings.ACTION_WIFI_SETTINGS); break;
                     case "lost": intent = new Intent(Settings.ACTION_SECURITY_SETTINGS); break;
                     case "gaming": intent = new Intent(Settings.ACTION_NOTIFICATION_POLICY_ACCESS_SETTINGS); break;
