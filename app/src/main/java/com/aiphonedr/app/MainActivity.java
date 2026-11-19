@@ -1,6 +1,9 @@
 package com.aiphonedr.app;
 
 import android.app.Activity;
+import android.Manifest;
+import android.content.pm.PackageManager;
+import android.speech.RecognizerIntent;
 import android.content.Intent;
 import android.content.BroadcastReceiver;
 import android.content.Context;
@@ -24,6 +27,8 @@ public class MainActivity extends Activity implements SensorEventListener {
     private SensorManager sensorManager;
     private boolean sensorsActive = false;
     private BroadcastReceiver powerReceiver;
+    private static final int REQUEST_VOICE_PERMISSION = 7101;
+    private static final int REQUEST_VOICE_RECOGNITION = 7102;
 
     @Override public void onCreate(Bundle state) {
         super.onCreate(state);
@@ -111,6 +116,13 @@ public class MainActivity extends Activity implements SensorEventListener {
 
     public class AndroidBridge {
         @JavascriptInterface public String getSensors() { return sensorInventory(); }
+        @JavascriptInterface public void startVoiceCommand() {
+            runOnUiThread(() -> {
+                if (checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
+                    requestPermissions(new String[]{Manifest.permission.RECORD_AUDIO}, REQUEST_VOICE_PERMISSION);
+                } else launchVoiceRecognition();
+            });
+        }
         @JavascriptInterface public String getBatteryInfo() {
             try {
                 Intent battery = registerReceiver(null, new android.content.IntentFilter(Intent.ACTION_BATTERY_CHANGED));
@@ -168,6 +180,35 @@ public class MainActivity extends Activity implements SensorEventListener {
                 try { startActivity(intent); }
                 catch (Exception e) { startActivity(new Intent(Settings.ACTION_SETTINGS)); }
             });
+        }
+    }
+
+    private void launchVoiceRecognition() {
+        try {
+            Intent intent = new Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH);
+            intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM);
+            intent.putExtra(RecognizerIntent.EXTRA_PROMPT, "Say a PH DOC AI command");
+            intent.putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 3);
+            startActivityForResult(intent, REQUEST_VOICE_RECOGNITION);
+        } catch (Exception e) { sendToPage("onVoiceError", "Voice recognition is unavailable on this device."); }
+    }
+
+    @Override public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        if (requestCode == REQUEST_VOICE_PERMISSION) {
+            if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) launchVoiceRecognition();
+            else sendToPage("onVoiceError", "Microphone permission was denied. Enable it in Android app settings.");
+        }
+    }
+
+    @Override protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode == REQUEST_VOICE_RECOGNITION) {
+            if (resultCode == RESULT_OK && data != null) {
+                java.util.ArrayList<String> matches = data.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS);
+                if (matches != null && !matches.isEmpty()) sendToPage("onVoiceResult", matches.get(0));
+                else sendToPage("onVoiceError", "I did not catch that. Please try again.");
+            } else sendToPage("onVoiceError", "Voice input cancelled or not recognised.");
         }
     }
 
