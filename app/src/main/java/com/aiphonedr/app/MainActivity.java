@@ -18,6 +18,14 @@ import android.hardware.SensorEventListener;
 import android.hardware.SensorManager;
 import android.os.Bundle;
 import android.app.ActivityManager;
+import android.app.AppOpsManager;
+import android.app.usage.UsageStats;
+import android.app.usage.UsageStatsManager;
+import android.os.Vibrator;
+import android.os.VibrationEffect;
+import android.os.VibratorManager;
+import java.io.InputStream;
+import java.security.MessageDigest;
 import android.os.StatFs;
 import android.os.Environment;
 import android.net.ConnectivityManager;
@@ -44,6 +52,9 @@ public class MainActivity extends Activity implements SensorEventListener {
     private static final int REQUEST_VOICE_RECOGNITION = 7102;
     private static final int REQUEST_PICK_DOCUMENT = 7103;
     private static final int REQUEST_SAVE_REPORT_PDF = 7104;
+    private static final int REQUEST_BACKUP_SOURCE = 7105;
+    private static final int REQUEST_BACKUP_DESTINATION = 7106;
+    private Uri pendingBackupSource;
     private String pendingPdfText = "";
 
     @Override public void onCreate(Bundle state) {
@@ -144,6 +155,9 @@ public class MainActivity extends Activity implements SensorEventListener {
             });
         }
         @JavascriptInterface public void pickDocument() { runOnUiThread(() -> { Intent i = new Intent(Intent.ACTION_OPEN_DOCUMENT); i.setType("*/*"); i.addCategory(Intent.CATEGORY_OPENABLE); startActivityForResult(i, REQUEST_PICK_DOCUMENT); }); }
+        @JavascriptInterface public void pickBackupSource() { runOnUiThread(() -> { Intent i = new Intent(Intent.ACTION_OPEN_DOCUMENT); i.setType("*/*"); i.addCategory(Intent.CATEGORY_OPENABLE); i.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION); startActivityForResult(i, REQUEST_BACKUP_SOURCE); }); }
+        @JavascriptInterface public String getAppUsage() { return appUsageStats(); }
+        @JavascriptInterface public void testVibration() { runOnUiThread(() -> { try { if (Build.VERSION.SDK_INT >= 31) { VibratorManager vm = (VibratorManager) getSystemService(VIBRATOR_MANAGER_SERVICE); vm.getDefaultVibrator().vibrate(VibrationEffect.createOneShot(180, VibrationEffect.DEFAULT_AMPLITUDE)); } else { Vibrator v = (Vibrator) getSystemService(VIBRATOR_SERVICE); if (v != null && v.hasVibrator()) v.vibrate(VibrationEffect.createOneShot(180, VibrationEffect.DEFAULT_AMPLITUDE)); } sendToPage("onNativeTestResult", "Vibration test sent. Did you feel it?"); } catch (Exception e) { sendToPage("onNativeTestResult", "Vibration test unavailable: " + e.getMessage()); } }); }
         @JavascriptInterface public void startVoiceCommand() {
             runOnUiThread(() -> {
                 if (checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
@@ -310,6 +324,61 @@ public class MainActivity extends Activity implements SensorEventListener {
         }
     }
 
+    private String queryDisplayName(Uri uri) {
+        try (android.database.Cursor cursor = getContentResolver().query(uri, null, null, null, null)) {
+            if (cursor != null && cursor.moveToFirst()) { int col = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME); if (col >= 0) return cursor.getString(col); }
+        } catch (Exception ignored) {}
+        return null;
+    }
+
+    private void copySelectedFile(Uri source, Uri destination) {
+        new Thread(() -> {
+            byte[] buffer = new byte[8192];
+            long copied = 0;
+            try (InputStream in = getContentResolver().openInputStream(source); OutputStream out = getContentResolver().openOutputStream(destination, "w")) {
+                if (in == null || out == null) throw new java.io.IOException("Could not open the selected file or backup destination");
+                int count;
+                while ((count = in.read(buffer)) != -1) { out.write(buffer, 0, count); copied += count; }
+                out.flush();
+                sendToPage("onBackupResult", "Backup complete. Copied " + copied + " bytes to the destination you selected. The original file was not changed.");
+            } catch (Exception e) { sendToPage("onBackupResult", "Backup failed: " + e.getMessage()); }
+        }).start();
+    }
+
+    private String appUsageStats() {
+        JSONObject result = new JSONObject();
+        JSONArray apps = new JSONArray();
+        try {
+            AppOpsManager ops = (AppOpsManager) getSystemService(APP_OPS_SERVICE);
+            int mode = ops == null ? AppOpsManager.MODE_IGNORED : ops.checkOpNoThrow(AppOpsManager.OPSTR_GET_USAGE_STATS, android.os.Process.myUid(), getPackageName());
+            boolean allowed = mode == AppOpsManager.MODE_ALLOWED;
+            result.put("accessGranted", allowed);
+            if (allowed) {
+                long end = System.currentTimeMillis();
+                long start = end - 24L * 60L * 60L * 1000L;
+                UsageStatsManager manager = (UsageStatsManager) getSystemService(USAGE_STATS_SERVICE);
+                List<UsageStats> stats = manager == null ? java.util.Collections.emptyList() : manager.queryUsageStats(UsageStatsManager.INTERVAL_DAILY, start, end);
+                if (stats != null) {
+                    java.util.Collections.sort(stats, (a,b) -> Long.compare(b.getTotalTimeInForeground(), a.getTotalTimeInForeground()));
+                    int count = 0;
+                    for (UsageStats item : stats) {
+                        long ms = item.getTotalTimeInForeground();
+                        if (ms <= 0 || count >= 20) continue;
+                        JSONObject row = new JSONObject();
+                        row.put("package", item.getPackageName());
+                        row.put("foregroundMs", ms);
+                        try { android.content.pm.ApplicationInfo ai = getPackageManager().getApplicationInfo(item.getPackageName(), 0); row.put("label", getPackageManager().getApplicationLabel(ai).toString()); }
+                        catch (Exception ignored) { row.put("label", item.getPackageName()); }
+                        apps.put(row); count++;
+                    }
+                }
+            }
+            result.put("apps", apps);
+            result.put("period", "Last 24 hours");
+        } catch (Exception e) { try { result.put("error", e.getMessage()); } catch (Exception ignored) {} }
+        return result.toString();
+    }
+
     private void launchVoiceRecognition() {
         try {
             Intent intent = new Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH);
@@ -333,6 +402,24 @@ public class MainActivity extends Activity implements SensorEventListener {
         if (requestCode == REQUEST_SAVE_REPORT_PDF) {
             if (resultCode == RESULT_OK && data != null) writeReportPdf(data.getData());
             else sendToPage("onReportPdfError", "PDF export was cancelled.");
+            return;
+        }
+        if (requestCode == REQUEST_BACKUP_SOURCE) {
+            if (resultCode == RESULT_OK && data != null && data.getData() != null) {
+                pendingBackupSource = data.getData();
+                String name = queryDisplayName(pendingBackupSource);
+                Intent save = new Intent(Intent.ACTION_CREATE_DOCUMENT);
+                save.addCategory(Intent.CATEGORY_OPENABLE);
+                save.setType(getContentResolver().getType(pendingBackupSource) == null ? "application/octet-stream" : getContentResolver().getType(pendingBackupSource));
+                save.putExtra(Intent.EXTRA_TITLE, name == null ? "DR_DEFENDER_Backup" : "Backup_" + name);
+                startActivityForResult(save, REQUEST_BACKUP_DESTINATION);
+            } else sendToPage("onBackupResult", "Backup cancelled; no file was copied.");
+            return;
+        }
+        if (requestCode == REQUEST_BACKUP_DESTINATION) {
+            if (resultCode == RESULT_OK && data != null && data.getData() != null && pendingBackupSource != null) copySelectedFile(pendingBackupSource, data.getData());
+            else sendToPage("onBackupResult", "Backup destination was not selected; no file was copied.");
+            pendingBackupSource = null;
             return;
         }
         if (requestCode == REQUEST_PICK_DOCUMENT) {
