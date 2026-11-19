@@ -90,6 +90,38 @@ public class MainActivity extends Activity implements SensorEventListener {
 
     public class AndroidBridge {
         @JavascriptInterface public String getSensors() { return sensorInventory(); }
+        @JavascriptInterface public String getBatteryInfo() {
+            try {
+                Intent battery = registerReceiver(null, new android.content.IntentFilter(Intent.ACTION_BATTERY_CHANGED));
+                if (battery == null) return "{}";
+                JSONObject info = new JSONObject();
+                info.put("temperature", battery.getIntExtra(android.os.BatteryManager.EXTRA_TEMPERATURE, -1));
+                info.put("health", healthName(battery.getIntExtra(android.os.BatteryManager.EXTRA_HEALTH, 0)));
+                info.put("charging", battery.getIntExtra(android.os.BatteryManager.EXTRA_STATUS, -1) == android.os.BatteryManager.BATTERY_STATUS_CHARGING
+                    || battery.getIntExtra(android.os.BatteryManager.EXTRA_STATUS, -1) == android.os.BatteryManager.BATTERY_STATUS_FULL);
+                info.put("status", statusName(battery.getIntExtra(android.os.BatteryManager.EXTRA_STATUS, -1)));
+                return info.toString();
+            } catch (Exception e) { return "{}"; }
+        }
+        private String healthName(int value) {
+            switch (value) {
+                case android.os.BatteryManager.BATTERY_HEALTH_GOOD: return "Good";
+                case android.os.BatteryManager.BATTERY_HEALTH_OVERHEAT: return "Overheating";
+                case android.os.BatteryManager.BATTERY_HEALTH_DEAD: return "Dead";
+                case android.os.BatteryManager.BATTERY_HEALTH_COLD: return "Cold";
+                case android.os.BatteryManager.BATTERY_HEALTH_OVER_VOLTAGE: return "Over voltage";
+                default: return "Unknown";
+            }
+        }
+        private String statusName(int value) {
+            switch (value) {
+                case android.os.BatteryManager.BATTERY_STATUS_CHARGING: return "Charging";
+                case android.os.BatteryManager.BATTERY_STATUS_DISCHARGING: return "Discharging";
+                case android.os.BatteryManager.BATTERY_STATUS_FULL: return "Full";
+                case android.os.BatteryManager.BATTERY_STATUS_NOT_CHARGING: return "Not charging";
+                default: return "Unknown";
+            }
+        }
         @JavascriptInterface public void startSensors() { runOnUiThread(() -> MainActivity.this.startSensors()); }
         @JavascriptInterface public void stopSensors() { runOnUiThread(() -> MainActivity.this.stopSensors()); }
 
