@@ -54,6 +54,8 @@ public class MainActivity extends Activity implements SensorEventListener {
     private WebView webView;
     private SensorManager sensorManager;
     private boolean sensorsActive = false;
+    private final Map<Integer, Long> sensorLastSentAt = new HashMap<>();
+    private long lastAnySensorSentAt = 0L;
     private BroadcastReceiver powerReceiver;
     private static final int REQUEST_VOICE_PERMISSION = 7101;
     private static final int REQUEST_VOICE_RECOGNITION = 7102;
@@ -124,6 +126,12 @@ public class MainActivity extends Activity implements SensorEventListener {
     }
 
     @Override public void onSensorChanged(SensorEvent event) {
+        // Keep the WebView responsive: coalesce hardware events before crossing the JS bridge.
+        long now = SystemClock.elapsedRealtime();
+        long lastForSensor = sensorLastSentAt.containsKey(event.sensor.getType()) ? sensorLastSentAt.get(event.sensor.getType()) : 0L;
+        if (now - lastForSensor < 500L || now - lastAnySensorSentAt < 120L) return;
+        sensorLastSentAt.put(event.sensor.getType(), now);
+        lastAnySensorSentAt = now;
         try {
             JSONObject data = new JSONObject();
             data.put("type", event.sensor.getStringType());
@@ -141,7 +149,10 @@ public class MainActivity extends Activity implements SensorEventListener {
     private void startSensors() {
         if (sensorsActive) return;
         sensorsActive = true;
+        sensorLastSentAt.clear();
+        lastAnySensorSentAt = 0L;
         for (Sensor s : sensorManager.getSensorList(Sensor.TYPE_ALL)) {
+            // Normal sampling plus callback throttling avoids flooding the WebView.
             try { sensorManager.registerListener(this, s, SensorManager.SENSOR_DELAY_NORMAL); }
             catch (Exception ignored) {}
         }
