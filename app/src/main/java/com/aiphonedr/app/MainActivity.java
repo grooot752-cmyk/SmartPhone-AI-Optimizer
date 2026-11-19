@@ -271,6 +271,27 @@ public class MainActivity extends Activity implements SensorEventListener {
                 else network = "Connected";
             }
             out.put("network", network);
+            out.put("networkValidated", caps != null && caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED));
+            out.put("networkMetered", cm != null && cm.isActiveNetworkMetered());
+            out.put("networkVpn", caps != null && caps.hasTransport(NetworkCapabilities.TRANSPORT_VPN));
+            out.put("downstreamKbps", caps == null ? -1 : caps.getLinkDownstreamBandwidthKbps());
+            out.put("upstreamKbps", caps == null ? -1 : caps.getLinkUpstreamBandwidthKbps());
+            out.put("signalStrengthDbm", Build.VERSION.SDK_INT >= 29 && caps != null ? caps.getSignalStrength() : -1);
+            android.os.PowerManager power = (android.os.PowerManager) getSystemService(POWER_SERVICE);
+            String thermal = "Not available";
+            if (Build.VERSION.SDK_INT >= 29 && power != null) {
+                switch (power.getCurrentThermalStatus()) {
+                    case android.os.PowerManager.THERMAL_STATUS_NONE: thermal = "Normal"; break;
+                    case android.os.PowerManager.THERMAL_STATUS_LIGHT: thermal = "Light"; break;
+                    case android.os.PowerManager.THERMAL_STATUS_MODERATE: thermal = "Moderate"; break;
+                    case android.os.PowerManager.THERMAL_STATUS_SEVERE: thermal = "Severe"; break;
+                    case android.os.PowerManager.THERMAL_STATUS_CRITICAL: thermal = "Critical"; break;
+                    case android.os.PowerManager.THERMAL_STATUS_EMERGENCY: thermal = "Emergency"; break;
+                    case android.os.PowerManager.THERMAL_STATUS_SHUTDOWN: thermal = "Shutdown"; break;
+                    default: thermal = "Unknown"; break;
+                }
+            }
+            out.put("thermalStatus", thermal);
             return out.toString();
         } catch (Exception e) { return "{}"; }
     }
