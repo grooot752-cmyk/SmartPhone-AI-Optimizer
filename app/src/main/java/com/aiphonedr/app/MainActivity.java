@@ -131,12 +131,12 @@ public class MainActivity extends Activity implements SensorEventListener {
         @JavascriptInterface public String getSensors() { return sensorInventory(); }
         @JavascriptInterface public String getDeviceStats() { return deviceStats(); }
         @JavascriptInterface public void exportReport(String reportText) {
-            pendingPdfText = reportText == null ? "PH DOC AI report is empty." : reportText;
+            pendingPdfText = reportText == null ? "DR.DEFENDER report is empty." : reportText;
             runOnUiThread(() -> {
                 Intent intent = new Intent(Intent.ACTION_CREATE_DOCUMENT);
                 intent.addCategory(Intent.CATEGORY_OPENABLE);
                 intent.setType("application/pdf");
-                intent.putExtra(Intent.EXTRA_TITLE, "PH_DOC_AI_Phone_Management_Report.pdf");
+                intent.putExtra(Intent.EXTRA_TITLE, "DR_DEFENDER_Phone_Management_Report.pdf");
                 startActivityForResult(intent, REQUEST_SAVE_REPORT_PDF);
             });
         }
@@ -262,7 +262,7 @@ public class MainActivity extends Activity implements SensorEventListener {
         heading.setColor(android.graphics.Color.rgb(30, 65, 105));
         heading.setTextSize(16f);
         heading.setFakeBoldText(true);
-        canvas.drawText("PH DOC AI — Phone Management Report", left, y, heading);
+        canvas.drawText("DR.DEFENDER — Phone Management Report", left, y, heading);
         y += 30;
         String[] lines = pendingPdfText.split("\\n");
         for (String original : lines) {
@@ -278,7 +278,7 @@ public class MainActivity extends Activity implements SensorEventListener {
                     page = document.startPage(new PdfDocument.PageInfo.Builder(pageWidth, pageHeight, pageNumber).create());
                     canvas = page.getCanvas();
                     y = 52;
-                    canvas.drawText("PH DOC AI — Phone Management Report (continued)", left, 30, heading);
+                    canvas.drawText("DR.DEFENDER — Phone Management Report (continued)", left, 30, heading);
                 }
                 canvas.drawText(line, left, y, paint);
                 y += 16;
@@ -302,7 +302,7 @@ public class MainActivity extends Activity implements SensorEventListener {
         try {
             Intent intent = new Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH);
             intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM);
-            intent.putExtra(RecognizerIntent.EXTRA_PROMPT, "Say a PH DOC AI command");
+            intent.putExtra(RecognizerIntent.EXTRA_PROMPT, "Say a DR.DEFENDER command");
             intent.putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 3);
             startActivityForResult(intent, REQUEST_VOICE_RECOGNITION);
         } catch (Exception e) { sendToPage("onVoiceError", "Voice recognition is unavailable on this device."); }
