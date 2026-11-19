@@ -73,8 +73,20 @@ body:before{content:"";position:fixed;inset:-30%;pointer-events:none;z-index:-1;
 .chat-disclaimer{font-size:10px;color:var(--muted);line-height:1.45;text-align:center;margin:10px 8px}
 .chat-status{font-size:10px;color:var(--mint);text-align:center;min-height:16px;margin:4px}
 main.chat-open> :not(header):not(#chatScreen){display:none!important}main.chat-open #chatScreen{display:block}
+
+.report-screen{display:none;min-height:calc(100vh - 110px);padding-bottom:20px}
+main.report-open> :not(header):not(#reportScreen){display:none!important}main.report-open #reportScreen{display:block}
+.report-head{display:flex;align-items:center;gap:12px;margin:8px 0 16px}.report-title{font-size:22px;font-weight:850}
+.report-back{border:1px solid var(--line);background:#ffffff0c;color:#eaf3ff;border-radius:13px;padding:10px 13px;font-size:13px}
+.report-summary{padding:17px;margin:12px 0}.report-summary strong{font-size:14px}.report-summary p{font-size:11px;color:var(--muted);line-height:1.5}
+.report-grid{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin:12px 0}
+.report-card{padding:13px;border-radius:16px;background:#ffffff0b;border:1px solid #ffffff15;min-width:0}
+.report-card b{display:block;font-size:12px;margin-bottom:6px}.report-card span{display:block;font-size:11px;color:var(--muted);line-height:1.5;overflow-wrap:anywhere}
+.report-entry{padding:13px 2px;border-bottom:1px solid #ffffff16}.report-entry b{font-size:12px}.report-entry p{font-size:11px;color:var(--muted);margin:5px 0 0;line-height:1.5}
+.report-meta{font-size:10px;color:var(--muted);margin:6px 0}.report-screen .action{margin-top:10px}
+@media(min-width:600px){.report-grid{grid-template-columns:repeat(3,1fr)}}
 </style></head><body><div class="edge-glow" aria-hidden="true"></div><main>
-<header><div class="brand">PH DOC AI</div><button class="chat-launch glass" id="chatLaunch">✧ AI Chat</button><div class="avatar">✧</div></header>
+<header><div class="brand">PH DOC AI</div><button class="chat-launch glass" id="reportLaunch">▤ All Results</button><button class="chat-launch glass" id="chatLaunch">✧ AI Chat</button><div class="avatar">✧</div></header>
 <h1>Your phone. Healthier.</h1><p class="sub">An intelligent device care centre.</p>
 <section class="glass hero"><div class="orb"><span>✧</span></div><div><h2>Liquid Glass Device Hub</h2><p>Explore device care, security and live hardware diagnostics with native Android integration.</p></div></section>
 <div class="section"><h2>Phone care</h2><span>13 TOOLS</span></div>
@@ -113,6 +125,16 @@ main.chat-open> :not(header):not(#chatScreen){display:none!important}main.chat-o
 <div class="glass chat-compose"><button class="chat-mic" id="chatMic" title="Speak">🎙</button><textarea id="chatInput" rows="1" placeholder="Ask PH DOC AI to manage your phone…"></textarea><button class="chat-send" id="chatSend" aria-label="Send message">↑</button></div>
 <div class="chat-status" id="chatStatus">Phone actions require Android permissions and your confirmation.</div>
 <p class="chat-disclaimer">The chat layout and phone shortcuts are ready. Live ChatGPT responses require the secure AI backend to be configured. No files are deleted and no protected settings are changed without your approval.</p>
+</section>
+
+<section id="reportScreen" class="report-screen" aria-label="All phone management results">
+<div class="report-head"><button class="report-back" id="reportBack">← Dashboard</button><div><div class="report-title">All Phone Results</div><div class="chat-caption">One place for your PH DOC AI reports</div></div></div>
+<div class="glass report-summary"><strong>Device Management Report</strong><p>View the latest information collected by PH DOC AI. Refresh to update available readings, then export a PDF copy.</p><div class="report-meta" id="reportDate">Not generated yet</div><button class="action" id="refreshReport">↻ Refresh all results</button><button class="action" id="downloadReport" style="background:linear-gradient(100deg,#b8a4ff,#8bb8ff)">↓ Download full report as PDF</button><div class="chat-status" id="reportStatus">Waiting for report data</div></div>
+<div class="section"><h2>Device overview</h2><span>LIVE DATA</span></div><div class="report-grid" id="reportOverview"></div>
+<div class="section"><h2>All management features</h2><span>FEATURE STATUS</span></div><div class="glass" style="padding:14px" id="reportFeatures"></div>
+<div class="section"><h2>Hardware sensors</h2><span id="reportSensorCount">NOT SCANNED</span></div><div class="glass" style="padding:14px" id="reportSensors"><div class="report-entry"><p>Tap Refresh all results to inspect sensors exposed by this phone.</p></div></div>
+<div class="section"><h2>Recent assistant conversation</h2></div><div class="glass" style="padding:14px" id="reportChat"><p class="report-meta">No chat messages yet.</p></div>
+<p class="chat-disclaimer">Only information actually available to Android is reported. Features requiring permissions, extra implementation or external services are marked accordingly; no scan is claimed unless it has run.</p>
 </section>
 <nav><button class="navitem" data-action="home"><b>⌂</b>Home</button><button class="navitem" data-action="doctor"><b>✚</b>Health</button><button class="navitem" data-action="antivirus"><b>⛨</b>Security</button><button class="navitem" data-action="settings"><b>⚙</b>Settings</button></nav>
 </main><script>
@@ -204,4 +226,30 @@ document.getElementById('chatSend').addEventListener('click',sendChat);
 chatInput.addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendChat();}});
 document.getElementById('chatQuick').addEventListener('click',e=>{const b=e.target.closest('button[data-prompt]');if(!b)return;chatInput.value=b.dataset.prompt;sendChat();});
 document.getElementById('chatMic').addEventListener('click',()=>{if(window.AndroidBridge&&AndroidBridge.startVoiceCommand){chatStatus.textContent='Listening…';window.__chatVoicePending=true;document.querySelector('.edge-glow')?.classList.add('voice-active');AndroidBridge.startVoiceCommand();}else chatStatus.textContent='Voice input is available in the installed Android app.';});
+
+const reportFeaturesList=[['AI Phone Doctor','Guided checks; not a full diagnostic yet'],['Smart Storage Cleaner','Android storage settings; file review needed'],['Phone Temperature','Battery temperature sensor when available'],['Battery Guardian','Android battery settings'],['Virus & Malware Scanner','APK/file scan workflow not yet active'],['Auto Backup & Restore','Requires file and destination selection'],['App Manager','Android app settings'],['RAM Monitor','Memory information; Android manages RAM'],['Network Doctor','Network settings; active speed test not yet available'],['AI File Organizer','Requires selected-file access'],['Gaming Mode','Notification policy settings'],['Lost Phone Assistant','Android security / Find Hub guidance'],['Smart Notifications','Android notification settings'],['Performance Monitor','Device and system information'],['Hardware Diagnostics','Sensor inventory and live readings'],['Privacy Dashboard','Android privacy settings'],['AI Battery Analytics','Battery information available; history needs implementation'],['Internet Speed & Data Monitor','Network type available; data analytics need implementation'],['App Activity Tracker','Usage access permission and implementation needed'],['Smart Cooling Assistant','Battery temperature guidance'],['Anti-Theft Protection','Protected Android functions / external service required'],['Smart Automation','Automation rules not yet active'],['System Update Assistant','Android system update settings'],['AI Screenshot Organizer','Media/file access needed'],['Document Scanner / PDF','Document workflow needed'],['Smart Clipboard','Clipboard access restricted by Android'],['Wi-Fi Security Inspector','Wi-Fi settings; security audit not yet active'],['Call & SMS Safety Assistant','Sensitive permissions and dedicated implementation needed'],['Display Doctor','Display settings'],['Audio Doctor','Sound settings'],['Smart Notification Filter','Notification controls'],['Emergency SOS Assistant','Android emergency settings'],['AI Daily Phone Report','This report page']];
+function reportAdd(container,title,value){const d=document.createElement('div');d.className='report-card';const b=document.createElement('b');b.textContent=title;const s=document.createElement('span');s.textContent=value;d.append(b,s);container.appendChild(d);}
+function refreshAllReport(){const overview=document.getElementById('reportOverview');overview.innerHTML='';const features=document.getElementById('reportFeatures');features.innerHTML='';const sensors=document.getElementById('reportSensors');sensors.innerHTML='';let battery={},stats={},sensorData=[];
+try{if(window.AndroidBridge){battery=JSON.parse(AndroidBridge.getBatteryInfo()||'{}');stats=JSON.parse(AndroidBridge.getDeviceStats()||'{}');sensorData=JSON.parse(AndroidBridge.getSensors()||'[]');}}catch(e){}
+const temp=battery.temperature==null||battery.temperature<0?'Not available':(battery.temperature/10).toFixed(1)+' °C';
+const bytes=n=>{if(!n)return 'Not available';const gb=n/1073741824;return gb.toFixed(2)+' GB';};
+reportAdd(overview,'Device',((stats.model||'Device unavailable')+' · Android '+(stats.android||'—')));
+reportAdd(overview,'Battery temperature',temp);
+reportAdd(overview,'Battery health',(battery.health||'Not available')+' · '+(battery.status||'Status unknown'));
+reportAdd(overview,'Charging',(battery.connected?'Connected':'Disconnected')+' · '+(battery.plugType||'Unknown'));
+reportAdd(overview,'RAM','Available '+bytes(stats.ramAvailable)+' / '+bytes(stats.ramTotal));
+reportAdd(overview,'Storage','Free '+bytes(stats.storageAvailable)+' / '+bytes(stats.storageTotal));
+reportAdd(overview,'Network',stats.network||'Not available');
+reportFeaturesList.forEach(([name,detail])=>{const d=document.createElement('div');d.className='report-entry';const b=document.createElement('b');b.textContent=name;const p=document.createElement('p');p.textContent=detail;d.append(b,p);features.appendChild(d);});
+document.getElementById('reportSensorCount').textContent=sensorData.length+' DETECTED';
+if(sensorData.length){sensorData.forEach(s=>{const d=document.createElement('div');d.className='report-entry';const b=document.createElement('b');b.textContent=s.name||s.type;const p=document.createElement('p');p.textContent=(s.vendor||'')+' · '+(s.type||'');d.append(b,p);sensors.appendChild(d);});}else sensors.textContent='No sensor inventory returned. Install and open the Android app, then refresh.';
+const chat=document.getElementById('reportChat');chat.innerHTML='';const msgs=[...document.querySelectorAll('#chatMessages .chat-msg')];if(msgs.length){msgs.forEach(m=>{const d=document.createElement('div');d.className='report-entry';const b=document.createElement('b');b.textContent=m.classList.contains('user')?'You':'PH DOC AI';const p=document.createElement('p');p.textContent=m.textContent;d.append(b,p);chat.appendChild(d);});}else chat.textContent='No chat messages yet.';
+const now=new Date();document.getElementById('reportDate').textContent='Generated: '+now.toLocaleString();document.getElementById('reportStatus').textContent='Report refreshed. Values shown are the latest available from Android.';return {battery,stats,sensorData};}
+function openReport(){document.querySelector('main').classList.add('report-open');refreshAllReport();}
+function closeReport(){document.querySelector('main').classList.remove('report-open');}
+document.getElementById('reportLaunch').addEventListener('click',openReport);document.getElementById('reportBack').addEventListener('click',closeReport);
+document.getElementById('refreshReport').addEventListener('click',refreshAllReport);
+document.querySelectorAll('.navitem').forEach(b=>{if(b.dataset.action==='home')b.addEventListener('click',closeReport);});
+function buildReportText(){const lines=['PH DOC AI — FULL PHONE MANAGEMENT REPORT','Generated: '+new Date().toLocaleString(),'','DEVICE OVERVIEW'];document.querySelectorAll('#reportOverview .report-card').forEach(x=>lines.push(x.querySelector('b').textContent+': '+x.querySelector('span').textContent));lines.push('','ALL MANAGEMENT FEATURES');document.querySelectorAll('#reportFeatures .report-entry').forEach(x=>lines.push(x.querySelector('b').textContent+': '+x.querySelector('p').textContent));lines.push('','HARDWARE SENSORS');document.querySelectorAll('#reportSensors .report-entry').forEach(x=>lines.push(x.querySelector('b')?.textContent+': '+(x.querySelector('p')?.textContent||'')));lines.push('','RECENT AI CHAT');document.querySelectorAll('#reportChat .report-entry').forEach(x=>lines.push(x.querySelector('b').textContent+': '+x.querySelector('p').textContent));lines.push('','Note: Android permissions and device capabilities determine available data. Feature descriptions are not proof that a scan or action has completed.');return lines.join('\n');}
+document.getElementById('downloadReport').addEventListener('click',()=>{const report=buildReportText();if(window.AndroidBridge&&AndroidBridge.exportReport){document.getElementById('reportStatus').textContent='Choose where to save your PDF…';AndroidBridge.exportReport(report);}else{const w=window.open('','_blank');if(!w){document.getElementById('reportStatus').textContent='Allow pop-ups to print or save this report.';return;}w.document.write('<html><head><title>PH DOC AI Report</title><style>body{font:14px Arial;padding:32px;white-space:pre-wrap;line-height:1.5}</style></head><body></body></html>');w.document.body.textContent=report;w.document.close();w.print();}});
 </script></body></html>
