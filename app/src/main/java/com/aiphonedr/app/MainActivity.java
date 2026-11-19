@@ -186,6 +186,12 @@ public class MainActivity extends Activity implements SensorEventListener {
                 int scale = battery.getIntExtra(android.os.BatteryManager.EXTRA_SCALE, -1);
                 info.put("percent", level >= 0 && scale > 0 ? Math.round(level * 100f / scale) : -1);
                 info.put("voltageMv", battery.getIntExtra(android.os.BatteryManager.EXTRA_VOLTAGE, -1));
+                android.os.BatteryManager bm = (android.os.BatteryManager) getSystemService(BATTERY_SERVICE);
+                if (bm != null) {
+                    info.put("currentNowMicroAmps", bm.getIntProperty(android.os.BatteryManager.BATTERY_PROPERTY_CURRENT_NOW));
+                    info.put("chargeCounterMicroAh", bm.getIntProperty(android.os.BatteryManager.BATTERY_PROPERTY_CHARGE_COUNTER));
+                    info.put("capacityPercent", bm.getIntProperty(android.os.BatteryManager.BATTERY_PROPERTY_CAPACITY));
+                }
                 info.put("technology", battery.getStringExtra(android.os.BatteryManager.EXTRA_TECHNOLOGY));
                 info.put("health", healthName(battery.getIntExtra(android.os.BatteryManager.EXTRA_HEALTH, 0)));
                 int plugType = battery.getIntExtra(android.os.BatteryManager.EXTRA_PLUGGED, 0);
