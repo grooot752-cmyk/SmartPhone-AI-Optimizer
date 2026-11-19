@@ -60,6 +60,7 @@ public class MainActivity extends Activity implements SensorEventListener {
     private static final int REQUEST_BACKUP_DESTINATION = 7106;
     private static final int REQUEST_APK_INSPECTION = 7107;
     private static final int REQUEST_DUPLICATE_FOLDER = 7108;
+    private static final int REQUEST_ORGANIZER_FOLDER = 7109;
     private Uri lastDuplicateTree;
     private Uri pendingBackupSource;
     private String pendingPdfText = "";
@@ -167,6 +168,7 @@ public class MainActivity extends Activity implements SensorEventListener {
         @JavascriptInterface public String getNotificationActivity() { try { JSONObject data = new JSONObject(DefenderNotificationListener.getSummary(MainActivity.this)); String enabled = Settings.Secure.getString(getContentResolver(), "enabled_notification_listeners"); boolean access = enabled != null && enabled.contains(new android.content.ComponentName(MainActivity.this, DefenderNotificationListener.class).flattenToString()); data.put("accessGranted", access); return data.toString(); } catch (Exception e) { return "{}"; } }
         @JavascriptInterface public void inspectApk() { runOnUiThread(() -> { Intent i = new Intent(Intent.ACTION_OPEN_DOCUMENT); i.setType("application/vnd.android.package-archive"); i.addCategory(Intent.CATEGORY_OPENABLE); startActivityForResult(i, REQUEST_APK_INSPECTION); }); }
         @JavascriptInterface public void pickFolderForDuplicateScan() { runOnUiThread(() -> { Intent i = new Intent(Intent.ACTION_OPEN_DOCUMENT_TREE); i.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_GRANT_WRITE_URI_PERMISSION | Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION); startActivityForResult(i, REQUEST_DUPLICATE_FOLDER); }); }
+        @JavascriptInterface public void pickFolderForOrganization() { runOnUiThread(() -> { Intent i = new Intent(Intent.ACTION_OPEN_DOCUMENT_TREE); i.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION); startActivityForResult(i, REQUEST_ORGANIZER_FOLDER); }); }
         @JavascriptInterface public void deleteDuplicate(String uriText) { if (uriText == null) return; new Thread(() -> { try { boolean deleted = DocumentsContract.deleteDocument(getContentResolver(), Uri.parse(uriText)); sendToPage("onDuplicateDeleted", deleted ? "Duplicate file deleted after your confirmation." : "Android could not delete this file."); if (deleted && lastDuplicateTree != null) scanDuplicateFolder(lastDuplicateTree); } catch (Exception e) { sendToPage("onDuplicateDeleted", "Could not delete file: " + e.getMessage()); } }).start(); }
         @JavascriptInterface public void testVibration() { runOnUiThread(() -> { try { if (Build.VERSION.SDK_INT >= 31) { VibratorManager vm = (VibratorManager) getSystemService(VIBRATOR_MANAGER_SERVICE); vm.getDefaultVibrator().vibrate(VibrationEffect.createOneShot(180, VibrationEffect.DEFAULT_AMPLITUDE)); } else { Vibrator v = (Vibrator) getSystemService(VIBRATOR_SERVICE); if (v != null && v.hasVibrator()) v.vibrate(VibrationEffect.createOneShot(180, VibrationEffect.DEFAULT_AMPLITUDE)); } sendToPage("onNativeTestResult", "Vibration test sent. Did you feel it?"); } catch (Exception e) { sendToPage("onNativeTestResult", "Vibration test unavailable: " + e.getMessage()); } }); }
         @JavascriptInterface public void startVoiceCommand() {
@@ -364,6 +366,44 @@ public class MainActivity extends Activity implements SensorEventListener {
         }
     }
 
+    private void scanOrganizerFolder(Uri tree) {
+        new Thread(() -> {
+            try {
+                JSONObject counts = new JSONObject();
+                counts.put("images", 0); counts.put("screenshots", 0); counts.put("videos", 0); counts.put("audio", 0); counts.put("documents", 0); counts.put("archives", 0); counts.put("other", 0);
+                int[] scanned = new int[]{0};
+                scanOrganizerChildren(tree, DocumentsContract.getTreeDocumentId(tree), 0, scanned, counts);
+                JSONObject result = new JSONObject();
+                result.put("scannedFiles", scanned[0]); result.put("categories", counts);
+                result.put("note", "Classification only. No files were moved, renamed, copied or deleted.");
+                sendToPage("onOrganizerScan", result.toString());
+            } catch (Exception e) { sendToPage("onOrganizerScan", "Folder organization scan failed: " + e.getMessage()); }
+        }).start();
+    }
+
+    private void scanOrganizerChildren(Uri tree, String parentId, int depth, int[] scanned, JSONObject counts) throws Exception {
+        if (depth > 8 || scanned[0] >= 3000) return;
+        Uri children = DocumentsContract.buildChildDocumentsUriUsingTree(tree, parentId);
+        try (android.database.Cursor cursor = getContentResolver().query(children, new String[]{DocumentsContract.Document.COLUMN_DOCUMENT_ID, DocumentsContract.Document.COLUMN_DISPLAY_NAME, DocumentsContract.Document.COLUMN_MIME_TYPE}, null, null, null)) {
+            if (cursor == null) return;
+            while (cursor.moveToNext() && scanned[0] < 3000) {
+                String id = cursor.getString(0); String name = cursor.getString(1); String mime = cursor.getString(2);
+                if (DocumentsContract.Document.MIME_TYPE_DIR.equals(mime)) { scanOrganizerChildren(tree, id, depth + 1, scanned, counts); continue; }
+                scanned[0]++;
+                String lower = name == null ? "" : name.toLowerCase(java.util.Locale.ROOT);
+                String category;
+                if (lower.contains("screenshot") || lower.contains("screen_shot")) category = "screenshots";
+                else if (mime != null && mime.startsWith("image/")) category = "images";
+                else if (mime != null && mime.startsWith("video/")) category = "videos";
+                else if (mime != null && mime.startsWith("audio/")) category = "audio";
+                else if ((mime != null && (mime.startsWith("text/") || mime.contains("pdf") || mime.contains("document") || mime.contains("spreadsheet") || mime.contains("presentation"))) || lower.endsWith(".pdf") || lower.endsWith(".docx") || lower.endsWith(".txt") || lower.endsWith(".xlsx")) category = "documents";
+                else if (lower.endsWith(".zip") || lower.endsWith(".rar") || lower.endsWith(".7z") || lower.endsWith(".tar") || lower.endsWith(".gz")) category = "archives";
+                else category = "other";
+                counts.put(category, counts.optInt(category, 0) + 1);
+            }
+        }
+    }
+
     private void scanDuplicateFolder(Uri tree) {
         new Thread(() -> {
             try {
@@ -540,6 +580,14 @@ public class MainActivity extends Activity implements SensorEventListener {
         if (requestCode == REQUEST_SAVE_REPORT_PDF) {
             if (resultCode == RESULT_OK && data != null) writeReportPdf(data.getData());
             else sendToPage("onReportPdfError", "PDF export was cancelled.");
+            return;
+        }
+        if (requestCode == REQUEST_ORGANIZER_FOLDER) {
+            if (resultCode == RESULT_OK && data != null && data.getData() != null) {
+                Uri tree = data.getData();
+                try { getContentResolver().takePersistableUriPermission(tree, data.getFlags() & Intent.FLAG_GRANT_READ_URI_PERMISSION); } catch (Exception ignored) {}
+                scanOrganizerFolder(tree);
+            } else sendToPage("onOrganizerScan", "Folder selection cancelled.");
             return;
         }
         if (requestCode == REQUEST_DUPLICATE_FOLDER) {
