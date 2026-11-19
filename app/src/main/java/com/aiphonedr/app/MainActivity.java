@@ -54,6 +54,7 @@ public class MainActivity extends Activity implements SensorEventListener {
     private static final int REQUEST_SAVE_REPORT_PDF = 7104;
     private static final int REQUEST_BACKUP_SOURCE = 7105;
     private static final int REQUEST_BACKUP_DESTINATION = 7106;
+    private static final int REQUEST_APK_INSPECTION = 7107;
     private Uri pendingBackupSource;
     private String pendingPdfText = "";
 
@@ -157,6 +158,7 @@ public class MainActivity extends Activity implements SensorEventListener {
         @JavascriptInterface public void pickDocument() { runOnUiThread(() -> { Intent i = new Intent(Intent.ACTION_OPEN_DOCUMENT); i.setType("*/*"); i.addCategory(Intent.CATEGORY_OPENABLE); startActivityForResult(i, REQUEST_PICK_DOCUMENT); }); }
         @JavascriptInterface public void pickBackupSource() { runOnUiThread(() -> { Intent i = new Intent(Intent.ACTION_OPEN_DOCUMENT); i.setType("*/*"); i.addCategory(Intent.CATEGORY_OPENABLE); i.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION); startActivityForResult(i, REQUEST_BACKUP_SOURCE); }); }
         @JavascriptInterface public String getAppUsage() { return appUsageStats(); }
+        @JavascriptInterface public void inspectApk() { runOnUiThread(() -> { Intent i = new Intent(Intent.ACTION_OPEN_DOCUMENT); i.setType("application/vnd.android.package-archive"); i.addCategory(Intent.CATEGORY_OPENABLE); startActivityForResult(i, REQUEST_APK_INSPECTION); }); }
         @JavascriptInterface public void testVibration() { runOnUiThread(() -> { try { if (Build.VERSION.SDK_INT >= 31) { VibratorManager vm = (VibratorManager) getSystemService(VIBRATOR_MANAGER_SERVICE); vm.getDefaultVibrator().vibrate(VibrationEffect.createOneShot(180, VibrationEffect.DEFAULT_AMPLITUDE)); } else { Vibrator v = (Vibrator) getSystemService(VIBRATOR_SERVICE); if (v != null && v.hasVibrator()) v.vibrate(VibrationEffect.createOneShot(180, VibrationEffect.DEFAULT_AMPLITUDE)); } sendToPage("onNativeTestResult", "Vibration test sent. Did you feel it?"); } catch (Exception e) { sendToPage("onNativeTestResult", "Vibration test unavailable: " + e.getMessage()); } }); }
         @JavascriptInterface public void startVoiceCommand() {
             runOnUiThread(() -> {
@@ -324,6 +326,49 @@ public class MainActivity extends Activity implements SensorEventListener {
         }
     }
 
+    private void inspectApkFile(Uri uri) {
+        new Thread(() -> {
+            java.io.File temp = null;
+            try {
+                temp = java.io.File.createTempFile("drdefender-apk-", ".apk", getCacheDir());
+                MessageDigest digest = MessageDigest.getInstance("SHA-256");
+                long bytes = 0;
+                try (InputStream in = getContentResolver().openInputStream(uri); java.io.FileOutputStream out = new java.io.FileOutputStream(temp)) {
+                    if (in == null) throw new java.io.IOException("Could not read the selected APK");
+                    byte[] buffer = new byte[16384]; int count;
+                    while ((count = in.read(buffer)) != -1) { out.write(buffer, 0, count); digest.update(buffer, 0, count); bytes += count; }
+                }
+                android.content.pm.PackageInfo info = getPackageManager().getPackageArchiveInfo(temp.getAbsolutePath(), android.content.pm.PackageManager.GET_SIGNING_CERTIFICATES);
+                JSONObject result = new JSONObject();
+                result.put("fileBytes", bytes);
+                result.put("sha256", toHex(digest.digest()));
+                result.put("validPackageArchive", info != null);
+                if (info != null) {
+                    result.put("packageName", info.packageName);
+                    result.put("versionName", info.versionName == null ? "Unknown" : info.versionName);
+                    result.put("versionCode", Build.VERSION.SDK_INT >= 28 ? info.getLongVersionCode() : info.versionCode);
+                    if (Build.VERSION.SDK_INT >= 28 && info.signingInfo != null) {
+                        android.content.pm.Signature[] signatures = info.signingInfo.getApkContentsSigners();
+                        JSONArray signers = new JSONArray();
+                        if (signatures != null) for (android.content.pm.Signature signature : signatures) {
+                            MessageDigest certDigest = MessageDigest.getInstance("SHA-256");
+                            signers.put(toHex(certDigest.digest(signature.toByteArray())));
+                        }
+                        result.put("signerCertificateSha256", signers);
+                    } else result.put("signerCertificateSha256", "Not available on this Android version");
+                } else result.put("message", "The selected file is not a readable Android APK archive.");
+                sendToPage("onApkInspection", result.toString());
+            } catch (Exception e) { sendToPage("onApkInspection", "APK inspection failed: " + e.getMessage()); }
+            finally { if (temp != null) temp.delete(); }
+        }).start();
+    }
+
+    private String toHex(byte[] bytes) {
+        StringBuilder out = new StringBuilder();
+        for (byte b : bytes) out.append(String.format(java.util.Locale.US, "%02x", b & 0xff));
+        return out.toString();
+    }
+
     private String queryDisplayName(Uri uri) {
         try (android.database.Cursor cursor = getContentResolver().query(uri, null, null, null, null)) {
             if (cursor != null && cursor.moveToFirst()) { int col = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME); if (col >= 0) return cursor.getString(col); }
@@ -402,6 +447,11 @@ public class MainActivity extends Activity implements SensorEventListener {
         if (requestCode == REQUEST_SAVE_REPORT_PDF) {
             if (resultCode == RESULT_OK && data != null) writeReportPdf(data.getData());
             else sendToPage("onReportPdfError", "PDF export was cancelled.");
+            return;
+        }
+        if (requestCode == REQUEST_APK_INSPECTION) {
+            if (resultCode == RESULT_OK && data != null && data.getData() != null) inspectApkFile(data.getData());
+            else sendToPage("onApkInspection", "APK inspection cancelled.");
             return;
         }
         if (requestCode == REQUEST_BACKUP_SOURCE) {
