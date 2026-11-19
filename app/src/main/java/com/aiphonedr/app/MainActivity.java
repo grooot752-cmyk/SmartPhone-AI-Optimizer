@@ -13,6 +13,12 @@ import android.hardware.SensorEvent;
 import android.hardware.SensorEventListener;
 import android.hardware.SensorManager;
 import android.os.Bundle;
+import android.app.ActivityManager;
+import android.os.StatFs;
+import android.os.Environment;
+import android.net.ConnectivityManager;
+import android.net.NetworkCapabilities;
+import android.net.Uri;
 import android.provider.Settings;
 import android.webkit.JavascriptInterface;
 import android.webkit.WebSettings;
@@ -29,6 +35,7 @@ public class MainActivity extends Activity implements SensorEventListener {
     private BroadcastReceiver powerReceiver;
     private static final int REQUEST_VOICE_PERMISSION = 7101;
     private static final int REQUEST_VOICE_RECOGNITION = 7102;
+    private static final int REQUEST_PICK_DOCUMENT = 7103;
 
     @Override public void onCreate(Bundle state) {
         super.onCreate(state);
@@ -116,6 +123,8 @@ public class MainActivity extends Activity implements SensorEventListener {
 
     public class AndroidBridge {
         @JavascriptInterface public String getSensors() { return sensorInventory(); }
+        @JavascriptInterface public String getDeviceStats() { return deviceStats(); }
+        @JavascriptInterface public void pickDocument() { runOnUiThread(() -> { Intent i = new Intent(Intent.ACTION_OPEN_DOCUMENT); i.setType("*/*"); i.addCategory(Intent.CATEGORY_OPENABLE); startActivityForResult(i, REQUEST_PICK_DOCUMENT); }); }
         @JavascriptInterface public void startVoiceCommand() {
             runOnUiThread(() -> {
                 if (checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
@@ -183,6 +192,35 @@ public class MainActivity extends Activity implements SensorEventListener {
         }
     }
 
+    private String deviceStats() {
+        try {
+            JSONObject out = new JSONObject();
+            ActivityManager am = (ActivityManager) getSystemService(ACTIVITY_SERVICE);
+            ActivityManager.MemoryInfo mem = new ActivityManager.MemoryInfo();
+            am.getMemoryInfo(mem);
+            out.put("ramTotal", mem.totalMem);
+            out.put("ramAvailable", mem.availMem);
+            StatFs fs = new StatFs(Environment.getDataDirectory().getPath());
+            out.put("storageTotal", fs.getTotalBytes());
+            out.put("storageAvailable", fs.getAvailableBytes());
+            out.put("model", Build.MANUFACTURER + " " + Build.MODEL);
+            out.put("android", Build.VERSION.RELEASE);
+            out.put("sdk", Build.VERSION.SDK_INT);
+            ConnectivityManager cm = (ConnectivityManager) getSystemService(CONNECTIVITY_SERVICE);
+            android.net.Network active = cm == null ? null : cm.getActiveNetwork();
+            NetworkCapabilities caps = active == null || cm == null ? null : cm.getNetworkCapabilities(active);
+            String network = "Offline";
+            if (caps != null) {
+                if (caps.hasTransport(NetworkCapabilities.TRANSPORT_WIFI)) network = "Wi-Fi";
+                else if (caps.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR)) network = "Mobile data";
+                else if (caps.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET)) network = "Ethernet";
+                else network = "Connected";
+            }
+            out.put("network", network);
+            return out.toString();
+        } catch (Exception e) { return "{}"; }
+    }
+
     private void launchVoiceRecognition() {
         try {
             Intent intent = new Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH);
@@ -203,7 +241,7 @@ public class MainActivity extends Activity implements SensorEventListener {
 
     @Override protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
-        if (requestCode == REQUEST_VOICE_RECOGNITION) {
+        if (requestCode == REQUEST_PICK_DOCUMENT) {\n            if (resultCode == RESULT_OK && data != null && data.getData() != null) sendToPage("onDocumentPicked", data.getData().toString());\n            return;\n        }\n        if (requestCode == REQUEST_VOICE_RECOGNITION) {
             if (resultCode == RESULT_OK && data != null) {
                 java.util.ArrayList<String> matches = data.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS);
                 if (matches != null && !matches.isEmpty()) sendToPage("onVoiceResult", matches.get(0));
